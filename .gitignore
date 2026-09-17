@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Playwright 브라우저 (프로젝트 내부 격리 시)
+_browsers/
+
+# 스크랩 산출물 / 분석용 임시 파일
+01_PlayStoreSales/scraper/games.json
+01_PlayStoreSales/scraper/probe_result.json
+01_PlayStoreSales/scraper/verify_result.json
+
+# 최초 DOM 분석용 임시 파일 (계측 자산 보존, git 제외)
+01_PlayStoreSales/_debug/
+
+# 백업
+*.bak
+
+# OS / 편집기
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

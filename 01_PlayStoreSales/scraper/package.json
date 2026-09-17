@@ -1,0 +1,19 @@
+{
+  "name": "play-store-sales-scraper",
+  "version": "1.0.0",
+  "description": "Play Store 'Games on sale' 렉션을 Playwright로 스크랩해 GAS Web App으로 전송",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "scrape": "node scrape.js --out games.json",
+    "send": "node send_to_gas.js",
+    "run": "node scrape.js --out games.json && node send_to_gas.js",
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.62.0"
+  }
+}

@@ -1,0 +1,75 @@
+name: Play Store Sale Scraper
+
+on:
+  schedule:
+    # 매일 00:00 UTC = 09:00 KST (GAS 트리거와 동일 시각)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: '디버그 로그 출력'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-store-sales
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: 01_PlayStoreSales/scraper
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 01_PlayStoreSales/scraper/package-lock.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('01_PlayStoreSales/scraper/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Scrape games on sale
+        run: node scrape.js --out games.json --verbose
+
+      - name: Upload scraped data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraped-games
+          path: 01_PlayStoreSales/scraper/games.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Send to Google Apps Script
+        env:
+          GAS_WEBAPP_URL: ${{ secrets.GAS_WEBAPP_URL }}
+          GAS_TOKEN: ${{ secrets.GAS_TOKEN }}
+        run: node send_to_gas.js --in games.json
