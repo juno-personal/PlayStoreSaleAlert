@@ -1,9 +1,6 @@
 name: Play Store Sale Scraper
 
 on:
-  schedule:
-    # 매일 00:00 UTC = 09:00 KST (GAS 트리거와 동일 시각)
-    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       debug:
