@@ -200,7 +200,7 @@ function updateSentGamesRecord(games) {
 }
 
 function sendEmail(count, htmlBody) {
-  const subject = "🎮 새로 할인하는 게임 " + count + "개";
+  const subject = "🎮 구글 PlayStore 세일 " + count + "개";
   GmailApp.sendEmail(CONFIG.EMAIL, subject, "HTML 이메일을 볼 수 있는 클라이언트로 확인하세요.", {
     htmlBody: htmlBody,
     name: "Play Store Sale Alert",
@@ -254,7 +254,7 @@ function formatSaleEnd(iso) {
 }
 
 function buildEmailHTML(games) {
-  const list = sortBySaleEndDesc(games);
+  const list = sortBySaleEndAsc(games);
   const freeCount = list.filter(function (g) {
     return priceValue(g.salePrice) === 0;
   }).length;
@@ -276,7 +276,7 @@ function buildEmailHTML(games) {
   html.push('<div style="font-size:12px;letter-spacing:1.2px;color:#4ade80;font-weight:700;">PLAY STORE SALE</div>');
   html.push('<div style="margin-top:6px;font-size:26px;line-height:1.25;font-weight:800;color:#f5f5f7;">새로 할인하는 게임 ' +
     list.length + '개</div>');
-  html.push('<div style="margin-top:8px;font-size:13px;color:#8e8e96;">한국어 UI · AED 가격 · 종료 늦은 순 정렬</div>');
+  html.push('<div style="margin-top:8px;font-size:13px;color:#8e8e96;">한국어 UI · AED 가격 · 종료 임박순 정렬</div>');
   const siteUrl = getSiteUrl();
   if (siteUrl) {
     html.push('<div style="margin-top:14px;">' +
@@ -312,7 +312,7 @@ function buildEmailHTML(games) {
   html.push('<tr><td style="padding:18px 2px 0;border-top:1px solid #232329;">');
   html.push('<div style="font-size:12px;line-height:1.7;color:#5d5d66;">' +
     '출처: play.google.com “Games on sale” 컬렉션 · 가격은 VAT 포함 표시가이며 계정 국가에 따라 달라질 수 있습니다.<br>' +
-    '정렬: 할인 종료일 내림차순 · 시간은 Dubai 기준(ST+4).</div>');
+    '정렬: 할인 종료 임박순 · 시간은 Dubai 기준(ST+4).</div>');
   html.push('</td></tr>');
 
   html.push('</table></td></tr></table></body></html>');
