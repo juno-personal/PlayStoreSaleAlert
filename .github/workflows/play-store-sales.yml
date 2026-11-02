@@ -9,7 +9,7 @@ on:
         default: 'false'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: play-store-sales
@@ -64,6 +64,25 @@ jobs:
           path: 01_PlayStoreSales/scraper/games.json
           retention-days: 7
           if-no-files-found: warn
+
+      # GitHub Pages 용 정적 페이지 (docs/index.html) 갱신
+      - name: Build site
+        run: node build_site.mjs --in games.json
+
+      - name: Commit site
+        continue-on-error: true
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          if git diff --staged --quiet; then
+            echo "사이트 변경 없음"
+          else
+            git commit -m "chore(site): update sale page"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push
+          fi
 
       - name: Send to Google Apps Script
         env:

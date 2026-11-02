@@ -9,8 +9,9 @@
   },
   "scripts": {
     "scrape": "node scrape.js --out games.json",
+    "site": "node build_site.mjs --in games.json",
     "send": "node send_to_gas.js",
-    "run": "node scrape.js --out games.json && node send_to_gas.js",
+    "run": "node scrape.js --out games.json && node build_site.mjs --in games.json && node send_to_gas.js",
     "probe": "node probe.mjs"
   },
   "dependencies": {

@@ -102,7 +102,8 @@ export function mapNetworkApp(entry) {
   if (Array.isArray(a[4])) {
     const num = Number(a[4][1]);
     const txt = Number.parseFloat(String(a[4][0] ?? "").replace(",", "."));
-    rating = Number.isFinite(num) ? num : Number.isFinite(txt) ? txt : null;
+    const value = Number.isFinite(num) ? num : Number.isFinite(txt) ? txt : NaN;
+    rating = Number.isFinite(value) ? Math.round(value * 10) / 10 : null;
   }
 
   // a[8] = [null, [ [할인가...], [정가...], ?, [할인%,…,"50% 할인"] ], …]
@@ -460,6 +461,18 @@ export function isSaleGame(game) {
   return Number.isFinite(sale) && sale < orig;
 }
 
+/** 할인 종료일 내림차순 정렬 (종료일 없는 항목은 맨 뒤) */
+export function sortBySaleEndDesc(games) {
+  return [...games].sort((a, b) => {
+    const ta = a.saleEndDate ? Date.parse(a.saleEndDate) : NaN;
+    const tb = b.saleEndDate ? Date.parse(b.saleEndDate) : NaN;
+    if (Number.isFinite(ta) && Number.isFinite(tb)) return tb - ta;
+    if (Number.isFinite(ta)) return -1;
+    if (Number.isFinite(tb)) return 1;
+    return (b.discountPercent || 0) - (a.discountPercent || 0);
+  });
+}
+
 /* ------------------------------------------------------------------ *
  * 4) 수집 / 스크롤
  * ------------------------------------------------------------------ */
@@ -517,7 +530,8 @@ async function nudge(page, opts) {
  * 끝까지 스크롤: 최하단 도달 + 수집 수가 stableNeeded회 연속 증가 없음 → 종료.
  * 각 단계에서 harvest 하므로 스크롤 중 사라진 카드도 보존된다.
  */
-async function scrollToEnd(page, opts, seen, args, networkApps) {
+async function scrollToEnd(page, opts, seen, args, network) {
+  const { networkApps, networkTotal } = network;
   const timeline = [];
   let stable = 0;
   let lastTotal = -1;
@@ -527,7 +541,8 @@ async function scrollToEnd(page, opts, seen, args, networkApps) {
   for (let step = 0; step <= opts.maxScrolls; step += 1) {
     await drainNetwork(page, networkApps);
     const domTotal = await harvest(page, seen, args);
-    const total = Math.max(domTotal, networkApps.size);
+    const netTotal = networkTotal();
+    const total = Math.max(domTotal, netTotal);
     const domCards = await page.locator(CARD).count();
     const state = await page.evaluate(() => {
       const el = document.scrollingElement || document.body;
@@ -539,7 +554,7 @@ async function scrollToEnd(page, opts, seen, args, networkApps) {
       step,
       domCards,
       domHarvested: domTotal,
-      networkApps: networkApps.size,
+      networkApps: netTotal,
       scrollHeight: state.scrollHeight,
       atBottom,
       elapsedSec: Number(((Date.now() - started) / 1000).toFixed(2)),
@@ -604,13 +619,16 @@ export async function scrape({
     const page = await context.newPage();
 
     // 네트워크(초기 HTML + batchexecute)에서 확보한 앱
-    const networkApps = new Map();
-    const addNetworkApps = (apps) => {
-      for (const app of apps) {
-        const prev = networkApps.get(app.packageId);
-        networkApps.set(app.packageId, prev ? { ...prev, ...app } : app);
-      }
+    const rpcApps = new Map(); // batchexecute 응답
+    const embeddedApps = new Map(); // 초기 HTML(AF_initDataCallback)
+    const addApp = (map, app) => {
+      const prev = map.get(app.packageId);
+      map.set(app.packageId, prev ? { ...prev, ...app } : app);
     };
+    const addNetworkApps = (map, apps) => {
+      for (const app of apps) addApp(map, app);
+    };
+    const networkTotal = () => new Set([...rpcApps.keys(), ...embeddedApps.keys()]).size;
 
     const t0 = Date.now();
     const response = await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
@@ -622,7 +640,7 @@ export async function scrape({
       const html = await response.text();
       const embedded = parseEmbeddedApps(html);
       embeddedCount = embedded.length;
-      addNetworkApps(embedded);
+      addNetworkApps(embeddedApps, embedded);
       if (verbose) console.log(`[scrape] 초기 HTML 앱 데이터: ${embeddedCount}개`);
     } catch (err) {
       if (verbose) console.warn(`[scrape] 초기 HTML 파싱 실패: ${err.message}`);
@@ -651,15 +669,19 @@ export async function scrape({
       cardSelector: CARD,
       pricePattern: PRICE_PATTERN,
     };
-    const { timeline, stopReason, scrolls } = await scrollToEnd(page, opts, seen, extractArgs, networkApps);
+    const { timeline, stopReason, scrolls } = await scrollToEnd(page, opts, seen, extractArgs, {
+      networkApps: rpcApps,
+      networkTotal,
+    });
 
     await page.waitForTimeout(800);
-    await drainNetwork(page, networkApps);
+    await drainNetwork(page, rpcApps);
 
     // 병합: 네트워크(정확한 구조화 데이터) 우선, DOM은 보강/폴백
     const merged = new Map();
+    const domIds = new Set(seen.keys());
 
-    for (const [pkg, app] of networkApps) {
+    for (const [pkg, app] of rpcApps) {
       const origNum = priceNumber(app.originalPrice);
       merged.set(pkg, {
         packageId: app.packageId,
@@ -675,6 +697,17 @@ export async function scrape({
         saleEndDate: app.saleEndDate,
         isPaid: Number.isFinite(origNum) ? origNum > 0 : true,
       });
+    }
+
+    // 초기 HTML 앱 중 컬렉션에 실제로 존재하는 것만 채택 (다른 섹션 데이터 혼입 방지)
+    let strayEmbedded = 0;
+    for (const [pkg, app] of embeddedApps) {
+      const inCollection = domIds.has(pkg) || rpcApps.has(pkg);
+      if (!inCollection) {
+        strayEmbedded += 1;
+        continue;
+      }
+      if (!merged.has(pkg)) merged.set(pkg, { ...app, isPaid: true });
     }
 
     let domOnly = 0;
@@ -694,18 +727,18 @@ export async function scrape({
     }
 
     const games = Array.from(merged.values()).filter((g) => g.name && g.packageId);
-    const paidGames = games.filter(isSaleGame);
+    const paidGames = sortBySaleEndDesc(games.filter(isSaleGame));
     const excluded = games.filter((g) => !isSaleGame(g));
 
     if (verbose) {
       console.log(
-        `[scrape] 네트워크 ${networkApps.size}개(초기HTML ${embeddedCount}) | DOM ${seen.size}개 (DOM만 존재 ${domOnly}개) → 할인 유료게임 ${paidGames.length}개`
+        `[scrape] 네트워크 ${networkTotal()}개(batchexecute ${rpcApps.size} + 초기HTML ${embeddedApps.size}, 제외된 HTML ${strayEmbedded}) | DOM ${seen.size}개 (DOM만 존재 ${domOnly}개) → 할인 유료게임 ${paidGames.length}개`
       );
       const last = timeline[timeline.length - 1];
       console.log(
         `[scrape] 스크롤 ${scrolls}회 | 종료=${stopReason} | 최하단도달=${last ? last.atBottom : false} | DOM 최종 ${last ? last.domCards : 0}장`
       );
-      if (networkApps.size === 0) {
+      if (networkTotal() === 0) {
         console.warn("[scrape] 경고: 네트워크 응답 파싱 0건 (DOM 수집값만 사용). 구조 변경 가능성.");
       }
       if (excluded.length) {
@@ -724,7 +757,7 @@ export async function scrape({
       initialCards,
       finalCards: await page.locator(CARD).count(),
       collectedCards: games.length,
-      networkCards: networkApps.size,
+      networkCards: networkTotal(),
       embeddedCards: embeddedCount,
       domCards: seen.size,
       uniquePackages: new Set(paidGames.map((g) => g.packageId)).size,

@@ -8,7 +8,7 @@
  *   node verify_gas_logic.mjs [games.json 경로]
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 // ---- GAS 전역 모킹 ----
 const store = {};
@@ -55,6 +55,14 @@ globalThis.ScriptApp = {
 };
 
 globalThis.UrlFetchApp = { fetch: () => ({ getResponseCode: () => 204, getContentText: () => "" }) };
+globalThis.Utilities = {
+  formatDate: (d, tz, fmt) => {
+    // 실제 GAS는 tz 변환. 검증용으로 Dubai(ST+4) 고정 포맷만 흉내낸다.
+    const shifted = new Date(new Date(d).getTime() + 4 * 3600 * 1000);
+    const iso = shifted.toISOString();
+    return `${iso.slice(5, 7)}.${iso.slice(8, 10)} ${iso.slice(11, 16)}`;
+  },
+};
 globalThis.console = console;
 
 // ---- Code.gs 로드 (전역 함수 주입) ----
@@ -67,7 +75,8 @@ const loadCode = new Function(
 const gas = loadCode();
 
 // ---- 테스트 ----
-const gamesPath = process.argv[2] || new URL("./games.json", import.meta.url).pathname.replace(/^\//, "");
+const gamesArg = process.argv.slice(2).find((a) => !a.startsWith("--"));
+const gamesPath = gamesArg || new URL("./games.json", import.meta.url).pathname.replace(/^\//, "");
 const payload = JSON.parse(readFileSync(gamesPath, "utf8"));
 const games = payload.games || payload;
 
@@ -116,9 +125,20 @@ check("doGet ok", health.ok === true && health.version === "v3.0", JSON.stringif
 // 6) 이메일 HTML 구조 검증
 const html = emailLog[0]?.htmlBody || "";
 check("HTML에 이미지 태그", html.includes("<img src="));
-check("HTML에 Play Store 링크", html.includes("Open in Play Store"));
-check("HTML에 할인 배지", html.includes("border-radius:15px"));
+check("HTML에 Play 스토어 링크", html.includes("Play 스토어에서 열기"));
+check("HTML에 할인 배지", html.includes("background:#e94560") || html.includes("background:#4ade80"));
+check("HTML에 절약 금액", html.includes("절약"));
+check("HTML에 종료 시각", html.includes("종료"));
+check("HTML에 할인 종료일", html.includes("⏳"));
 check("HTML 이스케이프 적용", !html.includes("<script"));
+
+// 디자인 확인용 미리보기 저장 (--dump-email)
+if (process.argv.includes("--dump-email")) {
+  const previewPath = new URL("../_debug/email_preview.html", import.meta.url);
+  mkdirSync(new URL("../_debug", import.meta.url), { recursive: true });
+  writeFileSync(previewPath, `<!DOCTYPE html><meta charset="utf-8">${html}`, "utf8");
+  console.log(`[verify] 이메일 미리보기: ${previewPath.pathname}`);
+}
 
 // 7) 토큰 불일치 거부
 store.SHARED_TOKEN = "expect-this";

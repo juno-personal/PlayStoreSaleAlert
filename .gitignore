@@ -27,3 +27,6 @@ _browsers/
 Thumbs.db
 .vscode/
 .idea/
+
+# opencode session exports
+/opencode_session_*.json
