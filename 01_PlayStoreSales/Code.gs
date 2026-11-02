@@ -253,6 +253,17 @@ function formatSaleEnd(iso) {
   }
 }
 
+function sortBySaleEndAsc(games) {
+  return games.slice().sort(function (a, b) {
+    const ta = a.saleEndDate ? Date.parse(a.saleEndDate) : NaN;
+    const tb = b.saleEndDate ? Date.parse(b.saleEndDate) : NaN;
+    if (isNaN(ta) && isNaN(tb)) return 0;
+    if (isNaN(ta)) return 1;
+    if (isNaN(tb)) return -1;
+    return ta - tb;
+  });
+}
+
 function buildEmailHTML(games) {
   const list = sortBySaleEndAsc(games);
   const freeCount = list.filter(function (g) {
