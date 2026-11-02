@@ -200,7 +200,7 @@ function updateSentGamesRecord(games) {
 }
 
 function sendEmail(count, htmlBody) {
-  const subject = "🎮 구글 PlayStore 세일 " + count + "개";
+  const subject = "구글 PlayStore 세일 " + count + "개";
   GmailApp.sendEmail(CONFIG.EMAIL, subject, "HTML 이메일을 볼 수 있는 클라이언트로 확인하세요.", {
     htmlBody: htmlBody,
     name: "Play Store Sale Alert",
