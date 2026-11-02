@@ -254,8 +254,8 @@ export function renderPage(games, meta = {}) {
   <div class="tools">
     <input id="search" type="search" placeholder="게임 이름 검색">
     <select id="sort">
-      <option value="endDesc" selected>할인 종료 늦은 순</option>
-      <option value="endAsc">할인 종료 임박 순</option>
+      <option value="endAsc" selected>할인 종료 임박 순</option>
+      <option value="endDesc">할인 종료 늦은 순</option>
       <option value="discount">할인율 높은 순</option>
       <option value="name">이름순</option>
     </select>
