@@ -24,12 +24,12 @@ export function parseArgs(argv) {
   return args;
 }
 
-/** 할인 종료일 내림차순 (없는 항목은 뒤로) */
-export function sortBySaleEndDesc(games) {
+/** 할인 종료일 오름차순 (없는 항목은 뒤로) */
+export function sortBySaleEndAsc(games) {
   return [...games].sort((a, b) => {
     const ta = a.saleEndDate ? Date.parse(a.saleEndDate) : NaN;
     const tb = b.saleEndDate ? Date.parse(b.saleEndDate) : NaN;
-    if (Number.isFinite(ta) && Number.isFinite(tb)) return tb - ta;
+    if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb;
     if (Number.isFinite(ta)) return -1;
     if (Number.isFinite(tb)) return 1;
     return (b.discountPercent || 0) - (a.discountPercent || 0);
@@ -220,7 +220,7 @@ const PAGE_JS = `
 `;
 
 export function renderPage(games, meta = {}) {
-  const sorted = sortBySaleEndDesc(games);
+  const sorted = sortBySaleEndAsc(games);
   const data = JSON.stringify(sorted).replace(/</g, "\\u003c");
   const updated = meta.scrapedAt
     ? new Intl.DateTimeFormat("ko-KR", {

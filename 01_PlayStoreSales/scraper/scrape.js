@@ -461,12 +461,12 @@ export function isSaleGame(game) {
   return Number.isFinite(sale) && sale < orig;
 }
 
-/** 할인 종료일 내림차순 정렬 (종료일 없는 항목은 맨 뒤) */
-export function sortBySaleEndDesc(games) {
+/** 할인 종료일 오름차순 정렬 (종료일 없는 항목은 맨 뒤) */
+export function sortBySaleEndAsc(games) {
   return [...games].sort((a, b) => {
     const ta = a.saleEndDate ? Date.parse(a.saleEndDate) : NaN;
     const tb = b.saleEndDate ? Date.parse(b.saleEndDate) : NaN;
-    if (Number.isFinite(ta) && Number.isFinite(tb)) return tb - ta;
+    if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb;
     if (Number.isFinite(ta)) return -1;
     if (Number.isFinite(tb)) return 1;
     return (b.discountPercent || 0) - (a.discountPercent || 0);
@@ -727,7 +727,7 @@ export async function scrape({
     }
 
     const games = Array.from(merged.values()).filter((g) => g.name && g.packageId);
-    const paidGames = sortBySaleEndDesc(games.filter(isSaleGame));
+    const paidGames = sortBySaleEndAsc(games.filter(isSaleGame));
     const excluded = games.filter((g) => !isSaleGame(g));
 
     if (verbose) {
