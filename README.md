@@ -39,7 +39,7 @@ Google Play의 "Games on sale" 컬션을 매일 스크랩해 **새로 할인에 
 무한스크롤로 모은 전체 목록을 **정적 페이지**로 발행합니다. Actions가 스크랩 직후 `docs/index.html`을 다시 만들고 커밋·푸시하므로 별도 서버가 필요 없습니다.
 
 - 위치: `docs/index.html` (데이터 임베드, 외부 CDN·JS 의존성 없음)
-- 사이트 URL: `https://lostempus06-eng.github.io/PlayStoreSaleAlert/`
+- 사이트 URL: `https://juno-personal.github.io/PlayStoreSaleAlert/`
 - 정렬: **할인 종료 임박순**(기본, 오름차순), 화면에서 종료 늦은 순/할인율/이름순 전환 가능
 - 기능: 이름 검색, 100% 할인(FREE)·할인율 배지, 종료 시각 표시, 반응형 3열 그리드
 

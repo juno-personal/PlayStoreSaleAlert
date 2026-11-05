@@ -418,6 +418,20 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+/** GitHub 계정/저장소 이름 변경 시 1회 실행: 스크립트 속성 일괄 갱신 */
+function updateGitHubProperties() {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(CONFIG.GITHUB.REPO_PROP, "juno-personal/PlayStoreSaleAlert");
+  props.setProperty("SITE_URL", "https://juno-personal.github.io/PlayStoreSaleAlert/");
+  // 현재 기본 브랜치가 master 이므로 명시적으로 설정
+  props.setProperty(CONFIG.GITHUB.REF_PROP, "master");
+  console.log("GitHub 속성 갱신 완료: " + JSON.stringify({
+    repo: props.getProperty(CONFIG.GITHUB.REPO_PROP),
+    siteUrl: props.getProperty("SITE_URL"),
+    ref: props.getProperty(CONFIG.GITHUB.REF_PROP),
+  }));
+}
+
 /** 매일 09:00 KST에 워커를 깨우는 트리거 설치 */
 function setupDailyTrigger() {
   removeTriggers();
